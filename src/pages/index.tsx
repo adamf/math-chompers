@@ -1,14 +1,16 @@
 // pages/index.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Head from 'next/head';
 
 let munchSound: HTMLAudioElement | null = null;
 let errorSound: HTMLAudioElement | null = null;
+let stepSounds: HTMLAudioElement[] = [];
 
 if (typeof window !== 'undefined') {
   munchSound = new Audio('/munch.mp3');
   errorSound = new Audio('/error.mp3');
+  stepSounds = ['/step1.mp3', '/step2.mp3', '/step3.mp3'].map((src) => new Audio(src));
 }
 
 const GRID_SIZE = 5;
@@ -82,20 +84,32 @@ export default function Home() {
   const [ruleNumber, setRuleNumber] = useState(2);
   const [grid, setGrid] = useState<GridValue[]>([]);
   const [flash, setFlash] = useState(false);
+  const stepIndexRef = useRef(0);
 
   useEffect(() => {
     const initialGrid = generateGrid(mode, ruleNumber);
     setGrid(initialGrid);
   }, [mode, ruleNumber]);
 
+  const playStepSound = () => {
+    if (stepSounds.length === 0) return;
+    stepSounds[stepIndexRef.current % stepSounds.length].play();
+    stepIndexRef.current = (stepIndexRef.current + 1) % stepSounds.length;
+  };
+
+  const moveTo = (newPos: number) => {
+    setMuncherPos(newPos);
+    playStepSound();
+  };
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       const row = Math.floor(muncherPos / GRID_SIZE);
       const col = muncherPos % GRID_SIZE;
-      if (e.key === 'ArrowUp' && row > 0) setMuncherPos(muncherPos - GRID_SIZE);
-      if (e.key === 'ArrowDown' && row < GRID_SIZE - 1) setMuncherPos(muncherPos + GRID_SIZE);
-      if (e.key === 'ArrowLeft' && col > 0) setMuncherPos(muncherPos - 1);
-      if (e.key === 'ArrowRight' && col < GRID_SIZE - 1) setMuncherPos(muncherPos + 1);
+      if (e.key === 'ArrowUp' && row > 0) moveTo(muncherPos - GRID_SIZE);
+      if (e.key === 'ArrowDown' && row < GRID_SIZE - 1) moveTo(muncherPos + GRID_SIZE);
+      if (e.key === 'ArrowLeft' && col > 0) moveTo(muncherPos - 1);
+      if (e.key === 'ArrowRight' && col < GRID_SIZE - 1) moveTo(muncherPos + 1);
       if (e.key === 'Enter') {
         const value = grid[muncherPos];
         if (isCorrect(mode, value, ruleNumber)) {
@@ -128,13 +142,33 @@ export default function Home() {
     setMuncherPos(12);
   };
 
+  const handleTouch = (index: number) => {
+    if (index === muncherPos) {
+      const value = grid[muncherPos];
+      if (isCorrect(mode, value, ruleNumber)) {
+        munchSound?.play();
+        const newGrid = [...grid];
+        newGrid[muncherPos] = generateGrid(mode, ruleNumber)[0];
+        setGrid(newGrid);
+        setScore(score + 1);
+        setFlash(true);
+        setTimeout(() => setFlash(false), 150);
+      } else {
+        errorSound?.play();
+        setScore(score - 1);
+      }
+    } else {
+      moveTo(index);
+    }
+  };
+
   return (
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Math Chompers</title>
       </Head>
-      <div className={`min-h-screen p-4 text-center transition ${flash ? 'bg-yellow-200' : 'bg-white'} text-gray-900`}> 
+      <div className={`min-h-screen p-4 text-center transition ${flash ? 'bg-lime-100' : 'bg-lime-50'} text-green-900`}> 
         <h1 className="text-3xl font-bold mb-4">Math Chompers</h1>
         <p className="mb-4 text-lg">Mode: {mode.toUpperCase()} | Rule: {ruleNumber} | Score: {score}</p>
         <div className="grid grid-cols-5 gap-2 w-max mx-auto">
@@ -145,19 +179,20 @@ export default function Home() {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.5, opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className={`w-16 h-16 flex items-center justify-center border rounded text-sm text-center px-1 ${index === muncherPos ? 'bg-green-300' : 'bg-white'}`}
+                onTouchStart={() => handleTouch(index)}
+                className={`w-16 h-16 flex items-center justify-center border-2 rounded text-sm text-center font-mono px-1 cursor-pointer select-none ${index === muncherPos ? 'bg-green-400 text-white border-green-800' : 'bg-lime-200 hover:bg-lime-300'}`}
               >
-                {value}
+                {index === muncherPos ? '🟩' : value}
               </motion.div>
             </AnimatePresence>
           ))}
         </div>
         <div className="mt-6 space-x-2 flex flex-wrap justify-center">
-          <button onClick={() => changeMode('multiples')} className="border px-3 py-1 bg-gray-100 hover:bg-gray-200">Multiples</button>
-          <button onClick={() => changeMode('factors')} className="border px-3 py-1 bg-gray-100 hover:bg-gray-200">Factors</button>
-          <button onClick={() => changeMode('primes')} className="border px-3 py-1 bg-gray-100 hover:bg-gray-200">Primes</button>
-          <button onClick={() => changeMode('equality')} className="border px-3 py-1 bg-gray-100 hover:bg-gray-200">Equalities</button>
-          <button onClick={() => changeMode('inequality')} className="border px-3 py-1 bg-gray-100 hover:bg-gray-200">Inequalities</button>
+          <button onClick={() => changeMode('multiples')} className="border px-3 py-1 bg-lime-100 hover:bg-lime-200">Multiples</button>
+          <button onClick={() => changeMode('factors')} className="border px-3 py-1 bg-lime-100 hover:bg-lime-200">Factors</button>
+          <button onClick={() => changeMode('primes')} className="border px-3 py-1 bg-lime-100 hover:bg-lime-200">Primes</button>
+          <button onClick={() => changeMode('equality')} className="border px-3 py-1 bg-lime-100 hover:bg-lime-200">Equalities</button>
+          <button onClick={() => changeMode('inequality')} className="border px-3 py-1 bg-lime-100 hover:bg-lime-200">Inequalities</button>
         </div>
       </div>
     </>
