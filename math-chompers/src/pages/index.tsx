@@ -13,10 +13,12 @@ if (typeof window !== 'undefined') {
 
 const GRID_SIZE = 5;
 
-const generateGrid = (mode: string, ruleNumber: number) => {
-  const grid = [];
+type GridValue = number | string;
+
+const generateGrid = (mode: string, ruleNumber: number): GridValue[] => {
+  const grid: GridValue[] = [];
   for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
-    let value;
+    let value: GridValue;
     if (mode === 'multiples') {
       value = Math.floor(Math.random() * 50 + 1);
     } else if (mode === 'factors') {
@@ -33,7 +35,7 @@ const generateGrid = (mode: string, ruleNumber: number) => {
   return grid;
 };
 
-const generateEquation = (target: number, isEquality: boolean) => {
+const generateEquation = (target: number, isEquality: boolean): string => {
   const ops = ['+', '-', '*', '/'];
   while (true) {
     const a = Math.floor(Math.random() * 12 + 1);
@@ -51,7 +53,7 @@ const generateEquation = (target: number, isEquality: boolean) => {
   }
 };
 
-const isCorrect = (mode: string, value: any, ruleNumber: number) => {
+const isCorrect = (mode: string, value: GridValue, ruleNumber: number): boolean => {
   const num = typeof value === 'number' ? value : eval(value);
   switch (mode) {
     case 'multiples':
@@ -78,13 +80,13 @@ export default function Home() {
   const [score, setScore] = useState(0);
   const [mode, setMode] = useState<'multiples' | 'factors' | 'primes' | 'equality' | 'inequality'>('multiples');
   const [ruleNumber, setRuleNumber] = useState(2);
-  const [grid, setGrid] = useState<any[]>([]);
+  const [grid, setGrid] = useState<GridValue[]>([]);
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
     const initialGrid = generateGrid(mode, ruleNumber);
     setGrid(initialGrid);
-  }, []);
+  }, [mode, ruleNumber]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
